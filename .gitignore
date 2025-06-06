@@ -1,0 +1,34 @@
+# Binários do Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Diretórios de build
+/bin/
+/build/
+/dist/
+
+# Arquivos do Go Modules
+/go.sum
+/vendor/
+
+# Arquivos temporários
+*.log
+*.tmp
+*.swp
+
+# Executável gerado
+gcommit
+
+# Diretórios de editor
+.idea/
+.vscode/
+*.code-workspace
+
+# Arquivo de configuração local (caso use)
+.env
+apikey.go
