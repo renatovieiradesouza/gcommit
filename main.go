@@ -23,7 +23,28 @@ func runGitAdd() {
 	fmt.Println("✅ git add . executado com sucesso.")
 }
 
+func getCurrentBranch() string {
+	out, err := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD").Output()
+	if err != nil {
+		log.Fatalf("Erro ao obter nome da branch atual: %v", err)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func runGitPush(branch string) {
+	cmd := exec.Command("git", "push", "origin", branch)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	if err != nil {
+		log.Fatalf("Erro ao fazer push para a branch %s: %v", branch, err)
+	}
+	fmt.Printf("🚀 Push realizado para 'origin/%s'\n", branch)
+}
+
 func main() {
+	pushAfterCommit := len(os.Args) > 1 && os.Args[1] == "-a"
+
 	// Carrega variáveis do .env
 	err := godotenv.Load()
 	if err != nil {
@@ -95,4 +116,9 @@ func main() {
 	}
 
 	fmt.Println("✅ Commit realizado com sucesso!")
+
+	if pushAfterCommit {
+		branch := getCurrentBranch()
+		runGitPush(branch)
+	}	
 }
