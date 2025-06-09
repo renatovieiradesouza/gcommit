@@ -4,11 +4,12 @@
 
 ## 🚀 Funcionalidades
 
-- Detecta automaticamente os arquivos adicionados (`git add`)
+- Adiciona arquivos automaticamente para staged (`git add`)
 - Coleta o diff com `git diff --cached`
 - Usa a API da OpenAI para gerar uma mensagem de commit
 - Realiza o commit com a mensagem gerada
 - Otimizado para baixo uso de tokens
+- Realiza o push baseado na branch atual
 
 ## 🛠 Requisitos
 
