@@ -12,6 +12,17 @@ import (
 	"github.com/joho/godotenv"
 )
 
+func runGitAdd() {
+	cmd := exec.Command("git", "add", ".")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	if err != nil {
+		log.Fatalf("Erro ao executar git add .: %v", err)
+	}
+	fmt.Println("✅ git add . executado com sucesso.")
+}
+
 func main() {
 	// Carrega variáveis do .env
 	err := godotenv.Load()
@@ -23,6 +34,8 @@ func main() {
 	if apiKey == "" {
 		log.Fatal("API key não encontrada em .env (esperado 'api_key')")
 	}
+
+	runGitAdd()
 
 	// 1. Verifica arquivos staged
 	files, err := exec.Command("git", "diff", "--cached", "--name-only").Output()
