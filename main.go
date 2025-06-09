@@ -9,10 +9,21 @@ import (
 	"strings"
 
 	openai "github.com/sashabaranov/go-openai"
+	"github.com/joho/godotenv"
 )
 
 func main() {
-	apiKey := "" // Substitua pela sua chave de API da OpenAI
+	// Carrega variáveis do .env
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Erro ao carregar .env")
+	}
+
+	apiKey := os.Getenv("api_key") // Substitua pela sua chave de API da OpenAI
+	if apiKey == "" {
+		log.Fatal("API key não encontrada em .env (esperado 'api_key')")
+	}
+
 	// 1. Verifica arquivos staged
 	files, err := exec.Command("git", "diff", "--cached", "--name-only").Output()
 	if err != nil {
