@@ -12,6 +12,8 @@
 - Quando usado com `-a`, detecta a branch atual automaticamente
 - Antes do push, executa `git pull --rebase origin <branch-atual>`
 - Após sincronizar a branch local com a remota, executa `git push origin <branch-atual>`
+- Quando usado com `-c`, executa primeiro o fluxo do `-a`
+- Depois do push principal, atualiza o `change_log.txt` e cria um commit `chore` com `[skip ci]`
 
 ## 🛠 Requisitos
 
@@ -42,6 +44,27 @@ Para fazer commit e sincronizar a branch atual com a remota antes do push:
 gcommit -a
 ```
 
+Para fazer commit e registrar a alteração no `change_log.txt`:
+
+```bash
+gcommit -c
+```
+
+Para fazer commit, sincronizar e depois registrar no change log:
+
+```bash
+gcommit -c -a
+```
+
+As flags também podem ser combinadas:
+
+```bash
+gcommit -ac
+gcommit -ca
+```
+
+Mesmo quando o usuário usa `-ca`, o fluxo interno continua executando primeiro o comportamento de `-a` e depois o de `-c`.
+
 Fluxo do `gcommit -a`:
 
 1. Executa `git add .`
@@ -49,3 +72,20 @@ Fluxo do `gcommit -a`:
 3. Executa `git commit`
 4. Executa `git pull --rebase origin <branch-atual>`
 5. Executa `git push origin <branch-atual>`
+
+Fluxo do `gcommit -c`:
+
+1. Executa o commit principal da mudança do usuário
+2. Executa `git pull --rebase origin <branch-atual>`
+3. Executa `git push origin <branch-atual>`
+4. Cria ou incrementa o arquivo `change_log.txt`
+5. Executa um novo commit com a mensagem `chore: update change log [skip ci]`
+6. Executa `git push origin <branch-atual>` para enviar o commit do change log
+
+O `change_log.txt` registra:
+
+1. `Change`: a mensagem do commit
+2. `Date`: a data atual no formato `dd/mm/aaaa às HHhmm`
+3. `Author`: o autor do último commit
+
+Cada entrada é separada pelo texto `==================`.

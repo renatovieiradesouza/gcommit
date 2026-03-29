@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	openai "github.com/sashabaranov/go-openai"
 	"github.com/joho/godotenv"
@@ -30,6 +31,24 @@ func getCurrentBranch() string {
 	return strings.TrimSpace(string(out))
 }
 
+func getLastCommitAuthor() string {
+	out, err := exec.Command("git", "log", "-1", "--pretty=%an").Output()
+	if err != nil {
+		log.Fatalf("Erro ao obter autor do último commit: %v", err)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func runGitAddFile(fileName string) {
+	cmd := exec.Command("git", "add", fileName)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		log.Fatalf("Erro ao executar git add %s: %v", fileName, err)
+	}
+	fmt.Printf("✅ git add %s executado com sucesso.\n", fileName)
+}
+
 func runGitPush(branch string) {
 	cmd := exec.Command("git", "push", "origin", branch)
 	cmd.Stdout = os.Stdout
@@ -50,6 +69,47 @@ func runGitPull(branch string) {
 	fmt.Printf("🔄 Pull com rebase realizado de 'origin/%s'\n", branch)
 }
 
+func runGitCommit(message string) {
+	cmd := exec.Command("git", "commit", "-m", message)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		log.Fatalf("Erro ao fazer commit: %v", err)
+	}
+}
+
+func appendChangeLog(commitMessage string) {
+	fileName := "change_log.txt"
+	separator := "==================\n\n"
+	date := time.Now().Format("02/01/2006 às 15h04")
+	author := getLastCommitAuthor()
+
+	entry := fmt.Sprintf("Change Log\n\nChange: %s\nDate: %s\nAuthor: %s\n", commitMessage, date, author)
+
+	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		log.Fatalf("Erro ao abrir %s: %v", fileName, err)
+	}
+	defer file.Close()
+
+	info, err := file.Stat()
+	if err != nil {
+		log.Fatalf("Erro ao verificar %s: %v", fileName, err)
+	}
+
+	if info.Size() > 0 {
+		if _, err := file.WriteString("\n" + separator); err != nil {
+			log.Fatalf("Erro ao escrever separador no %s: %v", fileName, err)
+		}
+	}
+
+	if _, err := file.WriteString(entry); err != nil {
+		log.Fatalf("Erro ao escrever no %s: %v", fileName, err)
+	}
+
+	fmt.Printf("📝 Change log atualizado em '%s'\n", fileName)
+}
+
 func loadAPIKey() string {
 	_ = godotenv.Load() // Tenta carregar .env, mas não interrompe se falhar
 
@@ -60,8 +120,35 @@ func loadAPIKey() string {
 	return apiKey
 }
 
+func parseFlags(args []string) (bool, bool) {
+	pushAfterCommit := false
+	createChangeLog := false
+
+	for _, arg := range args {
+		if !strings.HasPrefix(arg, "-") || len(arg) < 2 {
+			continue
+		}
+
+		for _, flag := range arg[1:] {
+			switch flag {
+			case 'a':
+				pushAfterCommit = true
+			case 'c':
+				createChangeLog = true
+			}
+		}
+	}
+
+	if createChangeLog {
+		pushAfterCommit = true
+	}
+
+	return pushAfterCommit, createChangeLog
+}
+
 func main() {
-	pushAfterCommit := len(os.Args) > 1 && os.Args[1] == "-a"
+	pushAfterCommit, createChangeLog := parseFlags(os.Args[1:])
+
 	apiKey := loadAPIKey()
 
 	runGitAdd()
@@ -111,18 +198,22 @@ func main() {
 	commitMessage := strings.TrimSpace(resp.Choices[0].Message.Content)
 	fmt.Printf("\n📦 Commit message gerada:\n%s\n", commitMessage)
 
-	cmd := exec.Command("git", "commit", "-m", commitMessage)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		log.Fatalf("Erro ao fazer commit: %v", err)
-	}
-
+	runGitCommit(commitMessage)
 	fmt.Println("✅ Commit realizado com sucesso!")
 
+	var branch string
+
 	if pushAfterCommit {
-		branch := getCurrentBranch()
+		branch = getCurrentBranch()
 		runGitPull(branch)
+		runGitPush(branch)
+	}
+
+	if createChangeLog {
+		appendChangeLog(commitMessage)
+		runGitAddFile("change_log.txt")
+		runGitCommit("chore: update change log [skip ci]")
+		fmt.Println("✅ Commit do change log realizado com sucesso!")
 		runGitPush(branch)
 	}
 }
