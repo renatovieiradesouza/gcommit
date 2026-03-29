@@ -35,3 +35,11 @@ Change Log
 Change: Removido arquivo "add"
 Date: 29/03/2026 às 15h16
 Author: Renato S.
+
+==================
+
+Change Log
+
+Change: Adicionar script de instalação e permissões de execução para o gcommit.
+Date: 29/03/2026 às 15h21
+Author: Renato S.
