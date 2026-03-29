@@ -3,3 +3,11 @@ Change Log
 Change: Atualiza fluxo de commit para inclusão do `change_log.txt` e criação de commit `chore` com `[skip ci]` ao final.
 Date: 29/03/2026 às 15h05
 Author: Renato S.
+
+==================
+
+Change Log
+
+Change: Adiciona configuração Git automática a partir do arquivo `~/gcommit.conf`.
+Date: 29/03/2026 às 15h13
+Author: Renato S.
