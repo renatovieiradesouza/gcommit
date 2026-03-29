@@ -16,6 +16,7 @@
 - Depois do push principal, atualiza o `change_log.txt` e cria um commit `chore` com `[skip ci]`
 - Antes de qualquer commit, aplica `user.name` e `user.email` a partir do `~/.gcommit.conf`
 - Se `~/.gcommit.conf` não existir, ele é criado automaticamente com valores padrão
+- Analisa o que entraria com `git add` e atualiza o `.gitignore` automaticamente para proteger diretórios sensíveis de Terraform/Terragrunt
 
 ## 🛠 Requisitos
 
@@ -85,7 +86,25 @@ name=Renato S.
 email=renato.souza@corporate.com.br
 ```
 
-Se o arquivo já existir, o `gcommit` apenas lê os valores de `name` e `email` e aplica no repositório atual antes dos commits.
+Se o arquivo já existir, o `gcommit` lê apenas `name` e `email` e aplica essa identidade Git antes dos commits.
+
+## 🛡 Proteção Terraform
+
+Antes do `git add .`, o `gcommit` simula o que seria adicionado e analisa se existem caminhos sensíveis de Terraform/Terragrunt fora do stage.
+
+Se detectar esse cenário, ele atualiza automaticamente o `.gitignore` do projeto atual com entradas para:
+
+1. `.terraform/`
+2. `.terragrunt/`
+3. `.terragrunt-cache/`
+
+Essa proteção é acionada quando o `gcommit` encontra candidatos ao stage dentro desses caminhos ou quando identifica arquivos típicos de Terraform/Terragrunt, como `*.tf`, `*.tfvars`, `*.tf.json`, `*.tfvars.json` e `terragrunt.hcl`.
+
+Depois do `git add .`, o `gcommit` ainda faz uma segunda checagem e bloqueia o processo se encontrar arquivos staged dentro de:
+
+1. `.terraform/`
+2. `.terragrunt/`
+3. `.terragrunt-cache/`
 
 Fluxo do `gcommit -a`:
 

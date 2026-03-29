@@ -16,9 +16,15 @@ import (
 )
 
 const (
-	defaultGitName  = "Renato S."
-	defaultGitEmail = "renato.souza@corporate.com.br"
+	defaultGitName    = "Renato S."
+	defaultGitEmail   = "renato.souza@corporate.com.br"
+	changeLogFileName = "change_log.txt"
 )
+
+type GCommitConfig struct {
+	Name  string
+	Email string
+}
 
 func runGitAdd() {
 	cmd := exec.Command("git", "add", ".")
@@ -85,6 +91,44 @@ func runGitCommit(message string) {
 	}
 }
 
+func getStagedFiles() []string {
+	files, err := exec.Command("git", "diff", "--cached", "--name-only").Output()
+	if err != nil {
+		log.Fatalf("Erro ao obter arquivos staged: %v", err)
+	}
+
+	return strings.Fields(string(files))
+}
+
+func getGitAddCandidates() []string {
+	out, err := exec.Command("git", "add", "--dry-run", ".").CombinedOutput()
+	if err != nil {
+		log.Fatalf("Erro ao simular git add .: %v", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	candidates := make([]string, 0, len(lines))
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		if strings.HasPrefix(line, "add '") && strings.HasSuffix(line, "'") {
+			candidates = append(candidates, strings.TrimSuffix(strings.TrimPrefix(line, "add '"), "'"))
+			continue
+		}
+
+		fields := strings.Fields(line)
+		if len(fields) > 0 {
+			candidates = append(candidates, fields[len(fields)-1])
+		}
+	}
+
+	return candidates
+}
+
 func getGitConfigFilePath() string {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -112,7 +156,7 @@ func ensureGitConfigFile() string {
 	return configPath
 }
 
-func loadGitIdentity() (string, string) {
+func loadGCommitConfig() GCommitConfig {
 	configPath := ensureGitConfigFile()
 
 	file, err := os.Open(configPath)
@@ -121,8 +165,10 @@ func loadGitIdentity() (string, string) {
 	}
 	defer file.Close()
 
-	name := defaultGitName
-	email := defaultGitEmail
+	config := GCommitConfig{
+		Name:  defaultGitName,
+		Email: defaultGitEmail,
+	}
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -142,11 +188,11 @@ func loadGitIdentity() (string, string) {
 		switch key {
 		case "name":
 			if value != "" {
-				name = value
+				config.Name = value
 			}
 		case "email":
 			if value != "" {
-				email = value
+				config.Email = value
 			}
 		}
 	}
@@ -155,11 +201,12 @@ func loadGitIdentity() (string, string) {
 		log.Fatalf("Erro ao ler %s: %v", configPath, err)
 	}
 
-	return name, email
+	return config
 }
 
-func configureGitIdentity() {
-	name, email := loadGitIdentity()
+func configureGitIdentity(config GCommitConfig) {
+	name := config.Name
+	email := config.Email
 
 	nameCmd := exec.Command("git", "config", "user.name", name)
 	nameCmd.Stdout = os.Stdout
@@ -179,7 +226,7 @@ func configureGitIdentity() {
 }
 
 func appendChangeLog(commitMessage string) {
-	fileName := "change_log.txt"
+	fileName := changeLogFileName
 	separator := "==================\n\n"
 	date := time.Now().Format("02/01/2006 às 15h04")
 	author := getLastCommitAuthor()
@@ -201,6 +248,113 @@ func appendChangeLog(commitMessage string) {
 	}
 
 	fmt.Printf("📝 Change log atualizado em '%s'\n", fileName)
+}
+
+func isTerraformFile(name string) bool {
+	switch {
+	case strings.HasSuffix(name, ".tf"):
+		return true
+	case strings.HasSuffix(name, ".tfvars"):
+		return true
+	case strings.HasSuffix(name, ".tf.json"):
+		return true
+	case strings.HasSuffix(name, ".tfvars.json"):
+		return true
+	case name == "terragrunt.hcl":
+		return true
+	default:
+		return false
+	}
+}
+
+func gitignoreHasEntry(content string, candidates []string) bool {
+	lines := strings.Split(content, "\n")
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "!") {
+			continue
+		}
+
+		for _, candidate := range candidates {
+			if strings.Contains(line, candidate) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func containsProtectedTerraformPath(path string) bool {
+	return strings.Contains(path, "/.terraform/") ||
+		strings.HasPrefix(path, ".terraform/") ||
+		strings.Contains(path, "/.terragrunt/") ||
+		strings.HasPrefix(path, ".terragrunt/") ||
+		strings.Contains(path, "/.terragrunt-cache/") ||
+		strings.HasPrefix(path, ".terragrunt-cache/")
+}
+
+func ensureTerraformGitignoreEntries() {
+	candidates := getGitAddCandidates()
+	shouldProtect := false
+
+	for _, candidate := range candidates {
+		if containsProtectedTerraformPath(candidate) || isTerraformFile(filepath.Base(candidate)) {
+			shouldProtect = true
+			break
+		}
+	}
+
+	if !shouldProtect {
+		return
+	}
+
+	existingContent, err := os.ReadFile(".gitignore")
+	if err != nil && !os.IsNotExist(err) {
+		log.Fatalf("Erro ao ler .gitignore: %v", err)
+	}
+
+	gitignore := string(existingContent)
+	entriesToAdd := make([]string, 0, 3)
+
+	if !gitignoreHasEntry(gitignore, []string{".terraform"}) {
+		entriesToAdd = append(entriesToAdd, ".terraform/")
+	}
+	if !gitignoreHasEntry(gitignore, []string{".terragrunt"}) {
+		entriesToAdd = append(entriesToAdd, ".terragrunt/")
+	}
+	if !gitignoreHasEntry(gitignore, []string{".terragrunt-cache"}) {
+		entriesToAdd = append(entriesToAdd, ".terragrunt-cache/")
+	}
+
+	if len(entriesToAdd) == 0 {
+		return
+	}
+
+	newContent := gitignore
+	if strings.TrimSpace(newContent) != "" && !strings.HasSuffix(newContent, "\n") {
+		newContent += "\n"
+	}
+	if strings.TrimSpace(newContent) != "" {
+		newContent += "\n"
+	}
+	newContent += strings.Join(entriesToAdd, "\n") + "\n"
+
+	if err := os.WriteFile(".gitignore", []byte(newContent), 0644); err != nil {
+		log.Fatalf("Erro ao atualizar .gitignore: %v", err)
+	}
+
+	fmt.Printf("🛡 .gitignore atualizado automaticamente com proteções de Terraform/Terragrunt: %s\n", strings.Join(entriesToAdd, ", "))
+}
+
+func ensureNoForbiddenTerraformPathsStaged() {
+	stagedFiles := getStagedFiles()
+	for _, file := range stagedFiles {
+		if containsProtectedTerraformPath(file) {
+			log.Fatalf("Arquivo sensível de Terraform/Terragrunt staged detectado: %s. Revise seu .gitignore e remova esses arquivos do stage antes de continuar.", file)
+		}
+	}
 }
 
 func loadAPIKey() string {
@@ -243,15 +397,15 @@ func main() {
 	pushAfterCommit, createChangeLog := parseFlags(os.Args[1:])
 
 	apiKey := loadAPIKey()
-	configureGitIdentity()
+	config := loadGCommitConfig()
+	configureGitIdentity(config)
+	ensureTerraformGitignoreEntries()
 
 	runGitAdd()
 
-	files, err := exec.Command("git", "diff", "--cached", "--name-only").Output()
-	if err != nil {
-		log.Fatalf("Erro ao obter arquivos staged: %v", err)
-	}
-	fileList := strings.Fields(string(files))
+	ensureNoForbiddenTerraformPathsStaged()
+
+	fileList := getStagedFiles()
 	if len(fileList) == 0 {
 		fmt.Println("Nenhum arquivo staged encontrado com `git add`.")
 		os.Exit(0)
@@ -305,7 +459,7 @@ func main() {
 
 	if createChangeLog {
 		appendChangeLog(commitMessage)
-		runGitAddFile("change_log.txt")
+		runGitAddFile(changeLogFileName)
 		runGitCommit("chore: update change log [skip ci]")
 		fmt.Println("✅ Commit do change log realizado com sucesso!")
 		runGitPush(branch)
