@@ -28,9 +28,16 @@
 ```bash
 git clone https://github.com/seuusuario/gcommit.git
 cd gcommit
-go build -o gcommit main.go
-mv gcommit ~/bin/
+chmod +x install.sh
+./install.sh
 ```
+
+O script `install.sh` executa:
+
+1. `go mod download`
+2. `go build -o gcommit main.go`
+3. `chmod +x gcommit`
+4. `sudo mv gcommit /usr/local/bin/gcommit`
 
 ## ▶️ Uso
 
