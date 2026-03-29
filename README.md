@@ -1,4 +1,4 @@
-# 🧠 gcommit
+# 🧠 gcommit 2
 
 `gcommit` é um utilitário de linha de comando em Go que substitui o uso manual de `git commit`. Ele analisa as mudanças staged no seu repositório e usa a OpenAI para gerar automaticamente uma mensagem de commit curta e significativa.
 
