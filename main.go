@@ -186,24 +186,17 @@ func appendChangeLog(commitMessage string) {
 
 	entry := fmt.Sprintf("Change Log\n\nChange: %s\nDate: %s\nAuthor: %s\n", commitMessage, date, author)
 
-	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		log.Fatalf("Erro ao abrir %s: %v", fileName, err)
-	}
-	defer file.Close()
-
-	info, err := file.Stat()
-	if err != nil {
-		log.Fatalf("Erro ao verificar %s: %v", fileName, err)
+	existingContent, err := os.ReadFile(fileName)
+	if err != nil && !os.IsNotExist(err) {
+		log.Fatalf("Erro ao ler %s: %v", fileName, err)
 	}
 
-	if info.Size() > 0 {
-		if _, err := file.WriteString("\n" + separator); err != nil {
-			log.Fatalf("Erro ao escrever separador no %s: %v", fileName, err)
-		}
+	newContent := entry
+	if len(existingContent) > 0 {
+		newContent += "\n" + separator + string(existingContent)
 	}
 
-	if _, err := file.WriteString(entry); err != nil {
+	if err := os.WriteFile(fileName, []byte(newContent), 0644); err != nil {
 		log.Fatalf("Erro ao escrever no %s: %v", fileName, err)
 	}
 
