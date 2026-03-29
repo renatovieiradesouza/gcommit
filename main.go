@@ -1,16 +1,23 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
 	openai "github.com/sashabaranov/go-openai"
 	"github.com/joho/godotenv"
+)
+
+const (
+	defaultGitName  = "Renato S."
+	defaultGitEmail = "renato.souza@corporate.com.br"
 )
 
 func runGitAdd() {
@@ -76,6 +83,99 @@ func runGitCommit(message string) {
 	if err := cmd.Run(); err != nil {
 		log.Fatalf("Erro ao fazer commit: %v", err)
 	}
+}
+
+func getGitConfigFilePath() string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatalf("Erro ao obter diretório home do usuário Linux: %v", err)
+	}
+
+	return filepath.Join(homeDir, "gcommit.conf")
+}
+
+func ensureGitConfigFile() string {
+	configPath := getGitConfigFilePath()
+
+	if _, err := os.Stat(configPath); err == nil {
+		return configPath
+	} else if !os.IsNotExist(err) {
+		log.Fatalf("Erro ao verificar %s: %v", configPath, err)
+	}
+
+	content := fmt.Sprintf("name=%s\nemail=%s\n", defaultGitName, defaultGitEmail)
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		log.Fatalf("Erro ao criar %s: %v", configPath, err)
+	}
+
+	fmt.Printf("🛠 Arquivo de configuração criado em '%s'\n", configPath)
+	return configPath
+}
+
+func loadGitIdentity() (string, string) {
+	configPath := ensureGitConfigFile()
+
+	file, err := os.Open(configPath)
+	if err != nil {
+		log.Fatalf("Erro ao abrir %s: %v", configPath, err)
+	}
+	defer file.Close()
+
+	name := defaultGitName
+	email := defaultGitEmail
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		key, value, found := strings.Cut(line, "=")
+		if !found {
+			continue
+		}
+
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+
+		switch key {
+		case "name":
+			if value != "" {
+				name = value
+			}
+		case "email":
+			if value != "" {
+				email = value
+			}
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Fatalf("Erro ao ler %s: %v", configPath, err)
+	}
+
+	return name, email
+}
+
+func configureGitIdentity() {
+	name, email := loadGitIdentity()
+
+	nameCmd := exec.Command("git", "config", "user.name", name)
+	nameCmd.Stdout = os.Stdout
+	nameCmd.Stderr = os.Stderr
+	if err := nameCmd.Run(); err != nil {
+		log.Fatalf("Erro ao configurar git user.name: %v", err)
+	}
+
+	emailCmd := exec.Command("git", "config", "user.email", email)
+	emailCmd.Stdout = os.Stdout
+	emailCmd.Stderr = os.Stderr
+	if err := emailCmd.Run(); err != nil {
+		log.Fatalf("Erro ao configurar git user.email: %v", err)
+	}
+
+	fmt.Printf("👤 Identidade Git configurada: %s <%s>\n", name, email)
 }
 
 func appendChangeLog(commitMessage string) {
@@ -150,6 +250,7 @@ func main() {
 	pushAfterCommit, createChangeLog := parseFlags(os.Args[1:])
 
 	apiKey := loadAPIKey()
+	configureGitIdentity()
 
 	runGitAdd()
 
