@@ -11,3 +11,11 @@ Change Log
 Change: Adiciona configuração Git automática a partir do arquivo `~/gcommit.conf`.
 Date: 29/03/2026 às 15h13
 Author: Renato S.
+
+==================
+
+Change Log
+
+Change: Atualiza path do arquivo de configuração para `~/.gcommit.conf` e garante sua existência ao executar o `gcommit`
+Date: 29/03/2026 às 15h14
+Author: Renato S.
