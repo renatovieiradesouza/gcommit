@@ -40,6 +40,16 @@ func runGitPush(branch string) {
 	fmt.Printf("🚀 Push realizado para 'origin/%s'\n", branch)
 }
 
+func runGitPull(branch string) {
+	cmd := exec.Command("git", "pull", "--rebase", "origin", branch)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		log.Fatalf("Erro ao fazer pull com rebase da branch %s em origin: %v", branch, err)
+	}
+	fmt.Printf("🔄 Pull com rebase realizado de 'origin/%s'\n", branch)
+}
+
 func loadAPIKey() string {
 	_ = godotenv.Load() // Tenta carregar .env, mas não interrompe se falhar
 
@@ -112,6 +122,7 @@ func main() {
 
 	if pushAfterCommit {
 		branch := getCurrentBranch()
+		runGitPull(branch)
 		runGitPush(branch)
 	}
 }
