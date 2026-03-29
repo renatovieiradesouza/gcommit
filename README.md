@@ -14,8 +14,8 @@
 - Após sincronizar a branch local com a remota, executa `git push origin <branch-atual>`
 - Quando usado com `-c`, executa primeiro o fluxo do `-a`
 - Depois do push principal, atualiza o `change_log.txt` e cria um commit `chore` com `[skip ci]`
-- Antes de qualquer commit, aplica `user.name` e `user.email` a partir do `~/gcommit.conf`
-- Se `~/gcommit.conf` não existir, ele é criado automaticamente com valores padrão
+- Antes de qualquer commit, aplica `user.name` e `user.email` a partir do `~/.gcommit.conf`
+- Se `~/.gcommit.conf` não existir, ele é criado automaticamente com valores padrão
 
 ## 🛠 Requisitos
 
@@ -69,7 +69,7 @@ Mesmo quando o usuário usa `-ca`, o fluxo interno continua executando primeiro 
 
 ## ⚙️ Configuração Git
 
-Sempre que o `gcommit` é executado, ele garante a existência do arquivo `~/gcommit.conf` no Linux.
+Sempre que o `gcommit` é executado, ele garante a existência do arquivo `~/.gcommit.conf` no Linux.
 
 Se o arquivo não existir, ele será criado automaticamente com este conteúdo padrão:
 

@@ -91,7 +91,7 @@ func getGitConfigFilePath() string {
 		log.Fatalf("Erro ao obter diretório home do usuário Linux: %v", err)
 	}
 
-	return filepath.Join(homeDir, "gcommit.conf")
+	return filepath.Join(homeDir, ".gcommit.conf")
 }
 
 func ensureGitConfigFile() string {
